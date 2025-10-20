@@ -1,0 +1,659 @@
+{
+  "api_responses": {
+    "auth": {
+      "register": {
+        "endpoint": "POST /api/auth/register",
+        "request": {
+          "first_name": "string",
+          "last_name": "string",
+          "phone": "string",
+          "password": "string"
+        },
+        "response": {
+          "success": true,
+          "user": {
+            "id": "uuid",
+            "first_name": "string",
+            "last_name": "string",
+            "phone": "string",
+            "display_name": "string"
+          },
+          "token": "jwt_token"
+        }
+      },
+      "login": {
+        "endpoint": "POST /api/auth/login",
+        "request": {
+          "phone": "string",
+          "password": "string"
+        },
+        "response": {
+          "success": true,
+          "user": {
+            "id": "uuid",
+            "display_name": "string",
+            "phone": "string"
+          },
+          "token": "jwt_token"
+        }
+      },
+      "verify_sms": {
+        "endpoint": "POST /api/auth/verify",
+        "request": {
+          "phone": "string",
+          "code": "string"
+        },
+        "response": {
+          "success": true,
+          "verified": true
+        }
+      }
+    },
+    "categories": {
+      "list": {
+        "endpoint": "GET /api/categories",
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "name": "string",
+              "slug": "string",
+              "gender_audience": "female|male|",
+              "subtitle": "string",
+              "description": "string",
+              "hero_image_light": "url",
+              "hero_image_dark": "url",
+              "card_image": "url",
+              "product_count": 0,
+              "brand_id": "relationships:category"
+            }
+          ]
+        }
+      },
+      "detail": {
+        "endpoint": "GET /api/categories/:id",
+        "response": {
+          "success": true,
+          "data": {
+            "id": "uuid",
+            "name": "string",
+            "slug": "string",
+            "gender_audience": "female|male|",
+            "description": "string",
+            "hero_image_light": "url",
+            "hero_image_dark": "url",
+            "filters": {
+              "price": {
+                "min": 0,
+                "max": 5000,
+                "step": 50
+              },
+              "brands": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "product_count": 0
+                }
+              ],
+              "fragrance_notes": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "product_count": 0
+                }
+              ],
+              "seasons": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "product_count": 0
+                }
+              ],
+              "product_types": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "product_count": 0
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "products": {
+      "list": {
+        "endpoint": "GET /api/products",
+        "query_params": {
+          "page": 1,
+          "limit": 20,
+          "category_id": "uuid|optional",
+          "brand_id": "uuid|optional",
+          "min_price": "number|optional",
+          "max_price": "number|optional",
+          "gender": "female|male||optional",
+          "fragrance_notes": "uuid,uuid|optional",
+          "seasons": "uuid,uuid|optional",
+          "product_types": "uuid,uuid|optional",
+          "search": "string|optional",
+          "sort": "price_asc|price_desc|rating|newest|optional"
+        },
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "slug": "string",
+              "name": "string",
+              "short_description": "string",
+              "brand": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "category": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "gender_audience": "female|male|",
+              "base_price": 0,
+              "currency": "USD",
+              "rating_average": 4.5,
+              "rating_count": 120,
+              "thumbnail_image": "url",
+              "is_tester_available": false,
+              "variants": [
+                {
+                  "id": "uuid",
+                  "label": "100 мл",
+                  "price": 0,
+                  "in_stock": true
+                }
+              ],
+              "description":"string",
+              "parameters":"string"
+            }
+          ],
+          "pagination": {
+            "current_page": 1,
+            "total_pages": 10,
+            "total_items": 200,
+            "items_per_page": 20,
+            "has_next": true,
+            "has_prev": false
+          }
+        }
+      },
+      "detail": {
+        "endpoint": "GET /api/products/:id",
+        "response": {
+          "success": true,
+          "data": {
+            "id": "uuid",
+            "slug": "string",
+            "name": "string",
+            "short_description": "string",
+            "long_description": "string",
+            "brand": {
+              "id": "uuid",
+              "name": "string",
+              "description": "string",
+              "country": "string"
+            },
+            "category": {
+              "id": "uuid",
+              "name": "string",
+              "gender_audience": "female|male|"
+            },
+            "gender_audience": "female|male|",
+            "base_price": 0,
+            "currency": "USD",
+            "rating_average": 4.5,
+            "rating_count": 120,
+            "release_year": 2015,
+            "manufacturer": "string",
+            "country_of_origin": "string",
+            "is_tester_available": true,
+            "fragrance_family": "string",
+            "fragrance_group": "string",
+            "composition_notes": "string",
+            "media": {
+              "hero_image": "url",
+              "gallery": [
+                {
+                  "id": "uuid",
+                  "url": "url",
+                  "alt_text": "string",
+                  "display_order": 0
+                }
+              ],
+              "marketing": [
+                {
+                  "id": "uuid",
+                  "url": "url",
+                  "type": "image|video",
+                  "display_order": 0
+                }
+              ]
+            },
+            "variants": [
+              {
+                "id": "uuid",
+                "sku": "string",
+                "label": "100 мл",
+                "volume_ml": 100,
+                "price": 0,
+                "currency": "USD",
+                "is_tester": false,
+                "inventory_quantity": 50,
+                "is_active": true
+              }
+            ],
+            "specifications": [
+              {
+                "label": "Бренд",
+                "value": "Christian Dior",
+                "display_order": 0
+              },
+              {
+                "label": "Тип",
+                "value": "Eau De Parfum",
+                "display_order": 1
+              }
+            ],
+            "description_blocks": [
+              {
+                "content": "Paragraph content here...",
+                "display_order": 0
+              }
+            ],
+            "highlights": [
+              {
+                "type": "text_ticker|media_carousel",
+                "text": "string|optional",
+                "media_items": [
+                  "url"
+                ],
+                "display_order": 0
+              }
+            ],
+            "fragrance_notes": [
+              {
+                "id": "uuid",
+                "name": "Альдегидные"
+              }
+            ],
+            "seasons": [
+              {
+                "id": "uuid",
+                "name": "Весна"
+              }
+            ],
+            "product_types": [
+              {
+                "id": "uuid",
+                "name": "Парфюм"
+              }
+            ],
+            "related_products": {
+              "title": "Похожие товары",
+              "products": [
+                {
+                  "id": "uuid",
+                  "slug": "string",
+                  "name": "string",
+                  "thumbnail_image": "url",
+                  "base_price": 0,
+                  "rating_average": 4.5
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "orders": {
+      "create": {
+        "endpoint": "POST /api/orders",
+        "request": {
+          "delivery_method": "address_delivery|store_pickup",
+          "delivery_address_id": "uuid|optional",
+          "pickup_branch_id": "uuid|optional",
+          "payment_method": "cash|card|digital_wallet",
+          "payment_details": {
+            "card_token": "string|optional",
+            "digital_provider_id": "uuid|optional"
+          },
+          "currency": "USD",
+          "products": [
+            {
+              "product_id": "string",
+              "count": "string"
+            }
+          ],
+          "promotion": "string",
+          "total_amount": "number",
+          "transaction_id": "string",
+          "bonus_amount": 0,
+          "notes": "string|optional"
+        },
+        "response": {
+          "success": true,
+          "data": {
+            "id": "uuid",
+            "order_number": "string",
+            "status": "pending",
+            "placed_at": "datetime",
+            "total": 0,
+            "currency": "USD"
+          }
+        }
+      },
+      "list": {
+        "endpoint": "GET /api/orders",
+        "query_params": {
+          "page": 1,
+          "limit": 10,
+          "status": "pending|processing|shipped|delivered|cancelled|optional"
+        },
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "order_number": "#7473567",
+              "status": "delivered",
+              "placed_at": "2025-10-12",
+              "total": 399,
+              "currency": "USD",
+              "items_count": 3
+            }
+          ],
+          "pagination": {
+            "current_page": 1,
+            "total_pages": 5,
+            "total_items": 50,
+            "items_per_page": 10,
+            "has_next": true,
+            "has_prev": false
+          }
+        }
+      },
+      "detail": {
+        "endpoint": "GET /api/orders/:id",
+        "response": {
+          "success": true,
+          "data": {
+            "id": "uuid",
+            "order_number": "#7473567",
+            "status": "delivered",
+            "placed_at": "datetime",
+            "subtotal": 0,
+            "shipping_fee": 0,
+            "total_amount": 0,
+            "currency": "USD",
+            "delivery_method": "address_delivery",
+            "delivery_address": {
+              "label": "Адрес 1",
+              "address_line": "string",
+              "apartment": "string",
+              "city": "string"
+            },
+            "payment_method": "card",
+            "transaction_id": "string",
+            "bonus_amount": 0,
+            "products": [
+              {
+                "id": "uuid",
+                "product_variant_id": "uuid",
+                "product_name": "string",
+                "variant_label": "100 мл",
+                "quantity": 1,
+                "unit_price": 0,
+                "line_total": 0
+              }
+            ]
+          }
+        }
+      }
+    },
+    "profile": {
+      "get": {
+        "endpoint": "GET /api/profile",
+        "response": {
+          "success": true,
+          "data": {
+            "user": {
+              "id": "uuid",
+              "first_name": "string",
+              "last_name": "string",
+              "display_name": "string",
+              "phone": "string",
+              "email": "string|null"
+            },
+            "preferences": {
+              "default_address_id": "uuid|null",
+              "marketing_opt_in": false
+            }
+          }
+        }
+      },
+      "update": {
+        "endpoint": "PUT /api/profile",
+        "request": {
+          "first_name": "string|optional",
+          "last_name": "string|optional",
+          "email": "string|optional",
+          "marketing_opt_in": "boolean|optional"
+        },
+        "response": {
+          "success": true,
+          "message": "Profile updated"
+        }
+      },
+      "addresses": {
+        "list": {
+          "endpoint": "GET /api/profile/addresses",
+          "response": {
+            "success": true,
+            "data": [
+              {
+                "id": "uuid",
+                "label": "Адрес 1",
+                "address_line": "string",
+                "apartment": "string",
+                "city": "string",
+                "district": "string",
+                "postal_code": "string",
+                "is_default": true
+              }
+            ]
+          }
+        },
+        "create": {
+          "endpoint": "POST /api/profile/addresses",
+          "request": {
+            "label": "string",
+            "address_line": "string",
+            "apartment": "string|optional",
+            "city": "string|optional",
+            "district": "string|optional",
+            "postal_code": "string|optional",
+            "is_default": false
+          },
+          "response": {
+            "success": true,
+            "data": {
+              "id": "uuid",
+              "label": "string"
+            }
+          }
+        },
+        "update": {
+          "endpoint": "PUT /api/profile/addresses/:id",
+          "request": {
+            "label": "string|optional",
+            "address_line": "string|optional",
+            "is_default": "boolean|optional"
+          },
+          "response": {
+            "success": true,
+            "message": "Address updated"
+          }
+        },
+        "delete": {
+          "endpoint": "DELETE /api/profile/addresses/:id",
+          "response": {
+            "success": true,
+            "message": "Address deleted"
+          }
+        }
+      },
+      "bonus": {
+        "balance": {
+          "endpoint": "GET /api/profile/bonus",
+          "response": {
+            "success": true,
+            "data": {
+              "balance": 30000,
+              "currency": "UZS",
+              "last_updated_at": "datetime"
+            }
+          }
+        },
+        "transactions": {
+          "endpoint": "GET /api/profile/bonus/transactions",
+          "query_params": {
+            "page": 1,
+            "limit": 10,
+            "type": "earned|spent|adjustment|optional"
+          },
+          "response": {
+            "success": true,
+            "data": [
+              {
+                "id": "uuid",
+                "transaction_number": "#7475567",
+                "type": "earned",
+                "status": "received",
+                "amount": 15000,
+                "currency": "UZS",
+                "order_id": "uuid|null",
+                "occurred_at": "2025-10-12"
+              }
+            ],
+            "pagination": {
+              "current_page": 1,
+              "total_pages": 3,
+              "total_items": 30,
+              "items_per_page": 10,
+              "has_next": true,
+              "has_prev": false
+            }
+          }
+        }
+      }
+    },
+    "banner": {
+      "get": {
+        "endpoint": "GET /api/banner",
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "title": "home-intro",
+              "image_light": "url",
+              "image_dark": "url",
+              "url": "url"
+            }
+          ]
+        }
+      }
+    },
+    "brands": {
+      "list": {
+        "endpoint": "GET /api/brands",
+        "query_params": {
+          "page": 1,
+          "limit": 50
+        },
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "name": "string",
+              "description": "string",
+              "country": "string",
+              "image": "url",
+              "product_count": 0,
+              "category_id": "relationships"
+            }
+          ],
+          "pagination": {
+            "current_page": 1,
+            "total_pages": 5,
+            "total_items": 250,
+            "items_per_page": 50,
+            "has_next": true,
+            "has_prev": false
+          }
+        }
+      }
+    },
+    "pickup_branches": {
+      "list": {
+        "endpoint": "GET /api/pickup-branches",
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "name": "string",
+              "address_line": "string",
+              "district": "string",
+              "coordinates": "lat,lng",
+              "working_hours": "string",
+              "contact_phone": "string",
+              "is_active": true
+            }
+          ]
+        }
+      }
+    },
+    "payment_providers": {
+      "list": {
+        "endpoint": "GET /api/payment/(click:payme:uzum)",
+        "response": {
+          "success": true,
+          "data": [
+            {
+              "id": "uuid",
+              "name": "Payme",
+              "type": "digital_wallet",
+              "brand_color": "#hex",
+              "image": "url",
+              "is_active": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "error_response": {
+    "success": false,
+    "error": {
+      "code": "ERROR_CODE",
+      "message": "Human readable error message",
+      "details": {}
+    }
+  },
+  "notes": {
+    "pagination": "All list endpoints support pagination with page and limit query parameters",
+    "authentication": "Protected endpoints require Bearer token in Authorization header",
+    "currency": "Default currency is USD for products, UZS for bonus system",
+    "datetime_format": "ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ)",
+    "uuid_format": "UUID v4 format for all IDs"
+  }
+}

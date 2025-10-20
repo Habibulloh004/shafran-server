@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Env/config secrets
+.env
+
+# Go build artifacts
+/bin/
+/build/
+/dist/
+/out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.prof
+coverage*.txt
+
+# Go tooling caches
+/.cache/
+/.gocache/
+/.gomodcache/
+/tmp/
+
+# IDE/editor dirs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local data
+/postgres_data/
+

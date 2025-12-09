@@ -15,6 +15,7 @@ func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
 	catalogHandler := handlers.NewCatalogHandler(db)
 	productHandler := handlers.NewProductHandler(db)
 	orderHandler := handlers.NewOrderHandler(db)
+	paymeHandler := handlers.NewPaymeHandler(db, cfg.PaymeMerchantID)
 	profileHandler := handlers.NewProfileHandler(db)
 	marketingHandler := handlers.NewMarketingHandler(db)
 	billzHandler := handlers.NewBillzHandler()
@@ -88,6 +89,12 @@ func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
 	payments.Post("/", marketingHandler.CreatePaymentProvider)
 	payments.Put("/:id", marketingHandler.UpdatePaymentProvider)
 	payments.Delete("/:id", marketingHandler.DeletePaymentProvider)
+
+	// Payme payment routes
+	payme := api.Group("/payme")
+	payme.Post("/checkout", paymeHandler.Checkout)
+	payme.Post("/pay", middleware.PaymeAuthMiddleware(cfg.PaymeMerchantKey), paymeHandler.Pay)
+	payme.Post("/fake-transaction", paymeHandler.CreateFakeTransaction)
 
 	// Protected routes
 	protected := api.Group("", middleware.AuthMiddleware(cfg))

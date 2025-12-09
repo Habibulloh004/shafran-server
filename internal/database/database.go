@@ -73,6 +73,7 @@ func migrate(conn *gorm.DB) error {
 		&models.BonusTransaction{},
 		&models.Order{},
 		&models.OrderItem{},
+		&models.PaymeTransaction{},
 	}
 
 	for _, migration := range migrations {

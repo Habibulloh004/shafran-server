@@ -9,7 +9,7 @@ import (
 
 // BaseModel provides shared columns for all tables.
 type BaseModel struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();primaryKey" json:"id"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -21,4 +21,3 @@ func (b *BaseModel) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-

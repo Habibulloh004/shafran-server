@@ -19,6 +19,8 @@ func main() {
 
 	app := fiber.New(fiber.Config{
 		AppName: "Shafran Backend",
+		// 50 MB max request body size
+		BodyLimit: 50 * 1024 * 1024,
 	})
 
 	app.Use(recover.New())

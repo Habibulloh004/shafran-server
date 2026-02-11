@@ -74,6 +74,8 @@ func migrate(conn *gorm.DB) error {
 		&models.Order{},
 		&models.OrderItem{},
 		&models.PaymeTransaction{},
+		&models.PasswordResetToken{},
+		&models.FooterSettings{},
 	}
 
 	for _, migration := range migrations {

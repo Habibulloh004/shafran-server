@@ -42,7 +42,16 @@ func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
 
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		q := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR short_description ILIKE ?", q, q)
+		query = query.Where(
+			h.db.Where("products.name ILIKE ?", q).
+				Or("products.short_description ILIKE ?", q).
+				Or("products.manufacturer ILIKE ?", q).
+				Or("products.fragrance_family ILIKE ?", q).
+				Or("products.fragrance_group ILIKE ?", q).
+				Or("products.composition_notes ILIKE ?", q).
+				Or("EXISTS (SELECT 1 FROM brands WHERE brands.id = products.brand_id AND brands.name ILIKE ?)", q).
+				Or("EXISTS (SELECT 1 FROM product_specifications WHERE product_specifications.product_id = products.id AND (product_specifications.label ILIKE ? OR product_specifications.value ILIKE ?))", q, q),
+		)
 	}
 
 	if minPrice := c.Query("min_price"); minPrice != "" {
@@ -67,7 +76,7 @@ func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
 	}
 
 	var products []models.Product
-	if err := query.Preload("Brand").Preload("Category").
+	if err := query.Preload("Brand").Preload("Category").Preload("Variants").Preload("Media").
 		Limit(pg.Limit).Offset(pg.Offset).
 		Order("created_at desc").
 		Find(&products).Error; err != nil {

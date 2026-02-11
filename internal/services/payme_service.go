@@ -3,20 +3,23 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/example/shafran/internal/models"
 )
 
 // TransactionState mirrors the JS TransactionState enum.
 const (
-	TransactionStatePaid           = 2
-	TransactionStatePending        = 1
+	TransactionStatePaid            = 2
+	TransactionStatePending         = 1
 	TransactionStatePendingCanceled = -1
-	TransactionStatePaidCanceled   = -2
+	TransactionStatePaidCanceled    = -2
 )
 
 // PaymeErrorInfo describes a Payme-compatible error.
@@ -96,11 +99,12 @@ func (e *TransactionError) Error() string {
 
 // PaymeService ports business logic from the JS payme.service.
 type PaymeService struct {
-	db *gorm.DB
+	db       *gorm.DB
+	telegram *TelegramService
 }
 
-func NewPaymeService(db *gorm.DB) *PaymeService {
-	return &PaymeService{db: db}
+func NewPaymeService(db *gorm.DB, telegram *TelegramService) *PaymeService {
+	return &PaymeService{db: db, telegram: telegram}
 }
 
 type PaymeAccount struct {
@@ -108,7 +112,7 @@ type PaymeAccount struct {
 }
 
 type CheckPerformParams struct {
-	Amount  int64       `json:"amount"`
+	Amount  int64        `json:"amount"`
 	Account PaymeAccount `json:"account"`
 }
 
@@ -138,9 +142,9 @@ type StatementParams struct {
 }
 
 type CheckTransactionResult struct {
-	CreateTime  int64 `json:"create_time"`
-	PerformTime int64 `json:"perform_time"`
-	CancelTime  int64 `json:"cancel_time"`
+	CreateTime  int64  `json:"create_time"`
+	PerformTime int64  `json:"perform_time"`
+	CancelTime  int64  `json:"cancel_time"`
 	Transaction string `json:"transaction"`
 	State       int    `json:"state"`
 	Reason      *int   `json:"reason"`
@@ -159,26 +163,24 @@ type CancelTransactionResult struct {
 }
 
 type StatementTransaction struct {
-	TransactionID string         `json:"transaction_id"`
-	Time          int64          `json:"time"`
-	Amount        int64          `json:"amount"`
-	Account       PaymeAccount   `json:"account"`
-	CreateTime    int64          `json:"create_time"`
-	PerformTime   int64          `json:"perform_time"`
-	CancelTime    int64          `json:"cancel_time"`
-	Transaction   string         `json:"transaction"`
-	State         int            `json:"state"`
-	Reason        *int           `json:"reason"`
+	TransactionID string       `json:"transaction_id"`
+	Time          int64        `json:"time"`
+	Amount        int64        `json:"amount"`
+	Account       PaymeAccount `json:"account"`
+	CreateTime    int64        `json:"create_time"`
+	PerformTime   int64        `json:"perform_time"`
+	CancelTime    int64        `json:"cancel_time"`
+	Transaction   string       `json:"transaction"`
+	State         int          `json:"state"`
+	Reason        *int         `json:"reason"`
 }
 
 // CheckPerformTransaction validates that the order exists and amount matches.
 func (s *PaymeService) CheckPerformTransaction(ctx context.Context, params CheckPerformParams, id any) error {
 	amount := params.Amount / 100
 
-	var txn models.PaymeTransaction
-	if err := s.db.WithContext(ctx).
-		Where("id = ? AND provider = ?", params.Account.OrderID, "payme").
-		First(&txn).Error; err != nil {
+	txn, err := s.findTransactionByOrderRef(ctx, params.Account.OrderID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &TransactionError{Info: PaymeErrorTransactionNotFound, ID: id}
 		}
@@ -272,10 +274,8 @@ func (s *PaymeService) CreateTransaction(ctx context.Context, params CreateTrans
 		return nil, err
 	}
 
-	var order models.PaymeTransaction
-	if err := s.db.WithContext(ctx).
-		Where("id = ? AND provider = ?", params.Account.OrderID, "payme").
-		First(&order).Error; err == nil {
+	order, err := s.findTransactionByOrderRef(ctx, params.Account.OrderID)
+	if err == nil {
 		if order.Status == TransactionStatePaid {
 			return nil, &TransactionError{Info: PaymeErrorAlreadyDone, ID: id}
 		}
@@ -288,7 +288,7 @@ func (s *PaymeService) CreateTransaction(ctx context.Context, params CreateTrans
 
 	if err := s.db.WithContext(ctx).
 		Model(&models.PaymeTransaction{}).
-		Where("id = ?", params.Account.OrderID).
+		Where("provider = ? AND (id = ? OR order_id = ?)", "payme", params.Account.OrderID, params.Account.OrderID).
 		Updates(map[string]any{
 			"transaction_id": params.ID,
 			"status":         TransactionStatePending,
@@ -323,6 +323,11 @@ func (s *PaymeService) PerformTransaction(ctx context.Context, params PerformTra
 		if txn.Status != TransactionStatePaid {
 			return nil, &TransactionError{Info: PaymeErrorCantDoOperation, ID: id}
 		}
+		if res, err := s.dispatchBillzOrder(ctx, txn.ID); err != nil {
+			log.Printf("billz order creation failed for payme transaction %s: %v", txn.ID, err)
+		} else if res != nil {
+			log.Printf("billz order %s created for payme transaction %s", res.OrderID, txn.ID)
+		}
 		return &PerformTransactionResult{
 			PerformTime: txn.PerformTime,
 			Transaction: txn.TransactionID,
@@ -352,6 +357,29 @@ func (s *PaymeService) PerformTransaction(ctx context.Context, params PerformTra
 			"perform_time": currentTime,
 		}).Error; err != nil {
 		return nil, err
+	}
+
+	if res, err := s.dispatchBillzOrder(ctx, txn.ID); err != nil {
+		log.Printf("billz order creation failed for payme transaction %s: %v", txn.ID, err)
+	} else if res != nil {
+		log.Printf("billz order %s created for payme transaction %s", res.OrderID, txn.ID)
+
+		// Telegram'ga to'lov muvaffaqiyatli bo'lgani haqida xabar yuborish
+		if s.telegram != nil {
+			go func() {
+				if err := s.telegram.NotifyPaymentSuccess(PaymentSuccessNotification{
+					OrderID:      txn.OrderID,
+					OrderNumber:  txn.OrderID,
+					BillzOrderID: res.OrderID,
+					Amount:       float64(txn.Amount),
+					Currency:     "UZS",
+				}); err != nil {
+					log.Printf("[Payme] Telegram payment success notification failed: %v", err)
+				} else {
+					log.Printf("[Payme] Telegram payment success notification sent for order %s", txn.OrderID)
+				}
+			}()
+		}
 	}
 
 	return &PerformTransactionResult{
@@ -431,9 +459,88 @@ func (s *PaymeService) GetStatement(ctx context.Context, params StatementParams)
 	return result, nil
 }
 
+func (s *PaymeService) findTransactionByOrderRef(ctx context.Context, orderRef string) (*models.PaymeTransaction, error) {
+	var txn models.PaymeTransaction
+	db := s.db.WithContext(ctx).Where("provider = ?", "payme")
+
+	if parsed, err := uuid.Parse(orderRef); err == nil {
+		if err := db.Where("id = ?", parsed).First(&txn).Error; err == nil {
+			return &txn, nil
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+	}
+
+	if err := db.Where("order_id = ?", orderRef).First(&txn).Error; err != nil {
+		return nil, err
+	}
+
+	return &txn, nil
+}
+
+func (s *PaymeService) dispatchBillzOrder(ctx context.Context, txnID uuid.UUID) (*BillzOrderResult, error) {
+	var result *BillzOrderResult
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var txn models.PaymeTransaction
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND provider = ?", txnID, "payme").
+			First(&txn).Error; err != nil {
+			return err
+		}
+
+		if txn.BillzOrderID != "" {
+			result = &BillzOrderResult{
+				OrderID:     txn.BillzOrderID,
+				OrderNumber: txn.BillzOrderNumber,
+				OrderType:   txn.BillzOrderType,
+			}
+			return nil
+		}
+
+		res, err := CreateBillzOrderFromPaymeTransaction(txn)
+		if err != nil {
+			_ = tx.Model(&models.PaymeTransaction{}).
+				Where("id = ?", txnID).
+				Updates(map[string]any{"billz_sync_error": truncateBillzSyncError(err)}).Error
+			return err
+		}
+		if res == nil {
+			return nil
+		}
+
+		now := time.Now()
+		if err := tx.Model(&models.PaymeTransaction{}).
+			Where("id = ?", txnID).
+			Updates(map[string]any{
+				"billz_order_id":     res.OrderID,
+				"billz_order_number": res.OrderNumber,
+				"billz_order_type":   res.OrderType,
+				"billz_synced_at":    &now,
+				"billz_sync_error":   "",
+			}).Error; err != nil {
+			return err
+		}
+		result = res
+		return nil
+	})
+	return result, err
+}
+
 func intAbs(v int) int {
 	if v < 0 {
 		return -v
 	}
 	return v
+}
+
+func truncateBillzSyncError(err error) string {
+	if err == nil {
+		return ""
+	}
+	const maxLen = 1024
+	msg := err.Error()
+	if len(msg) <= maxLen {
+		return msg
+	}
+	return msg[:maxLen]
 }

@@ -28,3 +28,15 @@ type SMSVerification struct {
 	UsedAt    *time.Time `json:"used_at"`
 }
 
+// PasswordResetToken stores tokens for the forgot-password flow.
+type PasswordResetToken struct {
+	BaseModel
+	Phone     string     `gorm:"index" json:"phone"`
+	Token     string     `gorm:"uniqueIndex" json:"token"`
+	Code      string     `json:"code"`
+	SessionID string     `json:"session_id"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	Verified  bool       `json:"verified"`
+	UsedAt    *time.Time `json:"used_at"`
+}
+

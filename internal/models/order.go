@@ -8,27 +8,34 @@ import (
 
 type Order struct {
 	BaseModel
-	UserID           uuid.UUID  `gorm:"type:uuid;index" json:"user_id"`
-	User             *User      `json:"user,omitempty"`
-	OrderNumber      string     `gorm:"uniqueIndex" json:"order_number"`
-	Status           string     `json:"status"`
-	PlacedAt         time.Time  `json:"placed_at"`
-	Subtotal         float64    `json:"subtotal"`
-	ShippingFee      float64    `json:"shipping_fee"`
-	TotalAmount      float64    `json:"total_amount"`
-	Currency         string     `json:"currency"`
-	DeliveryMethod   string     `json:"delivery_method"`
-	DeliveryAddressID *uuid.UUID `gorm:"type:uuid" json:"delivery_address_id"`
-	PickupBranchID   *uuid.UUID `gorm:"type:uuid" json:"pickup_branch_id"`
-	DeliveryAddressLine string  `json:"delivery_address_line"`
-	DeliveryApartment   string  `json:"delivery_apartment"`
-	DeliveryCity        string  `json:"delivery_city"`
-	DeliveryDistrict    string  `json:"delivery_district"`
-	PaymentMethod     string    `json:"payment_method"`
-	TransactionID     string    `json:"transaction_id"`
-	BonusAmount       float64   `json:"bonus_amount"`
-	Notes             string    `json:"notes"`
-	Items             []OrderItem `json:"items,omitempty"`
+	UserID              uuid.UUID  `gorm:"type:uuid;index" json:"user_id"`
+	User                *User      `json:"user,omitempty"`
+	OrderNumber         string     `gorm:"uniqueIndex" json:"order_number"`
+	Status              string     `json:"status"`
+	PlacedAt            time.Time  `json:"placed_at"`
+	Subtotal            float64    `json:"subtotal"`
+	ShippingFee         float64    `json:"shipping_fee"`
+	TotalAmount         float64    `json:"total_amount"`
+	Currency            string     `json:"currency"`
+	DeliveryMethod      string     `json:"delivery_method"`
+	DeliveryAddressID   *uuid.UUID `gorm:"type:uuid" json:"delivery_address_id"`
+	PickupBranchID      *uuid.UUID `gorm:"type:uuid" json:"pickup_branch_id"`
+	DeliveryAddressLine string     `json:"delivery_address_line"`
+	DeliveryApartment   string     `json:"delivery_apartment"`
+	DeliveryCity        string     `json:"delivery_city"`
+	DeliveryDistrict    string     `json:"delivery_district"`
+	PaymentMethod       string     `json:"payment_method"`
+	TransactionID       string     `json:"transaction_id"`
+	BonusAmount         float64    `json:"bonus_amount"`
+	Notes               string     `json:"notes"`
+	Items               []OrderItem `json:"items,omitempty"`
+
+	// Billz integration fields
+	BillzOrderID     string     `json:"billz_order_id,omitempty"`
+	BillzOrderNumber string     `json:"billz_order_number,omitempty"`
+	BillzOrderType   string     `json:"billz_order_type,omitempty"`
+	BillzSyncedAt    *time.Time `json:"billz_synced_at,omitempty"`
+	BillzSyncError   string     `json:"billz_sync_error,omitempty"`
 }
 
 type OrderItem struct {

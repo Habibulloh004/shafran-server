@@ -7,18 +7,25 @@ import (
 	"github.com/example/shafran/internal/config"
 	"github.com/example/shafran/internal/handlers"
 	"github.com/example/shafran/internal/middleware"
+	"github.com/example/shafran/internal/services"
 )
 
 // Register wires up all HTTP routes.
 func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
+	// Initialize Telegram service
+	telegramService := services.NewTelegramService(cfg.TelegramBotToken, cfg.TelegramAdminChat)
+
 	authHandler := handlers.NewAuthHandler(db, cfg)
+	passwordResetHandler := handlers.NewPasswordResetHandler(db, cfg)
 	catalogHandler := handlers.NewCatalogHandler(db)
 	productHandler := handlers.NewProductHandler(db)
-	orderHandler := handlers.NewOrderHandler(db)
-	paymeHandler := handlers.NewPaymeHandler(db, cfg.PaymeMerchantID)
+	orderHandler := handlers.NewOrderHandler(db, telegramService)
+	paymeHandler := handlers.NewPaymeHandler(db, cfg.PaymeMerchantID, telegramService)
 	profileHandler := handlers.NewProfileHandler(db)
 	marketingHandler := handlers.NewMarketingHandler(db)
 	billzHandler := handlers.NewBillzHandler()
+	adminHandler := handlers.NewAdminHandler(db)
+	footerHandler := handlers.NewFooterHandler(db)
 
 	api := app.Group("/api")
 
@@ -27,6 +34,9 @@ func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/verify", authHandler.Verify)
+	auth.Post("/forgot-password", passwordResetHandler.ForgotPassword)
+	auth.Post("/verify-reset-code", passwordResetHandler.VerifyResetCode)
+	auth.Post("/reset-password", passwordResetHandler.ResetPassword)
 
 	// Catalog routes
 	categories := api.Group("/categories")
@@ -92,9 +102,21 @@ func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
 
 	// Payme payment routes
 	payme := api.Group("/payme")
+	payme.Get("/transactions", paymeHandler.ListTransactions)
 	payme.Post("/checkout", paymeHandler.Checkout)
 	payme.Post("/pay", middleware.PaymeAuthMiddleware(cfg.PaymeMerchantKey), paymeHandler.Pay)
 	payme.Post("/fake-transaction", paymeHandler.CreateFakeTransaction)
+
+	// Footer (public GET, admin PUT)
+	api.Get("/footer", footerHandler.GetFooter)
+	api.Put("/footer", footerHandler.UpdateFooter)
+
+	// Admin routes
+	admin := api.Group("/admin")
+	admin.Get("/stats", adminHandler.DashboardStats)
+	admin.Get("/orders", adminHandler.ListAllOrders)
+	admin.Get("/users", adminHandler.ListAllUsers)
+	admin.Get("/recent-orders", adminHandler.RecentOrders)
 
 	// Protected routes
 	protected := api.Group("", middleware.AuthMiddleware(cfg))

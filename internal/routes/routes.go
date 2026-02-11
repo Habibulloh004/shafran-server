@@ -7,15 +7,19 @@ import (
 	"github.com/example/shafran/internal/config"
 	"github.com/example/shafran/internal/handlers"
 	"github.com/example/shafran/internal/middleware"
+	"github.com/example/shafran/internal/services"
 )
 
 // Register wires up all HTTP routes.
 func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
+	// Initialize Telegram service
+	telegramService := services.NewTelegramService(cfg.TelegramBotToken, cfg.TelegramAdminChat)
+
 	authHandler := handlers.NewAuthHandler(db, cfg)
 	catalogHandler := handlers.NewCatalogHandler(db)
 	productHandler := handlers.NewProductHandler(db)
-	orderHandler := handlers.NewOrderHandler(db)
-	paymeHandler := handlers.NewPaymeHandler(db, cfg.PaymeMerchantID)
+	orderHandler := handlers.NewOrderHandler(db, telegramService)
+	paymeHandler := handlers.NewPaymeHandler(db, cfg.PaymeMerchantID, telegramService)
 	profileHandler := handlers.NewProfileHandler(db)
 	marketingHandler := handlers.NewMarketingHandler(db)
 	billzHandler := handlers.NewBillzHandler()
@@ -92,6 +96,7 @@ func Register(app *fiber.App, db *gorm.DB, cfg *config.Config) {
 
 	// Payme payment routes
 	payme := api.Group("/payme")
+	payme.Get("/transactions", paymeHandler.ListTransactions)
 	payme.Post("/checkout", paymeHandler.Checkout)
 	payme.Post("/pay", middleware.PaymeAuthMiddleware(cfg.PaymeMerchantKey), paymeHandler.Pay)
 	payme.Post("/fake-transaction", paymeHandler.CreateFakeTransaction)

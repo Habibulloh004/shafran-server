@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,20 +15,23 @@ import (
 
 	"github.com/example/shafran/internal/models"
 	"github.com/example/shafran/internal/services"
+	"github.com/example/shafran/internal/utils"
 )
 
 // PaymeHandler manages Payme-related endpoints.
 type PaymeHandler struct {
-	db          *gorm.DB
-	payme       *services.PaymeService
-	merchantID  string
+	db         *gorm.DB
+	payme      *services.PaymeService
+	merchantID string
+	telegram   *services.TelegramService
 }
 
-func NewPaymeHandler(db *gorm.DB, merchantID string) *PaymeHandler {
+func NewPaymeHandler(db *gorm.DB, merchantID string, telegram *services.TelegramService) *PaymeHandler {
 	return &PaymeHandler{
 		db:         db,
-		payme:      services.NewPaymeService(db),
+		payme:      services.NewPaymeService(db, telegram),
 		merchantID: merchantID,
+		telegram:   telegram,
 	}
 }
 
@@ -64,8 +68,11 @@ type paymeFakeTransactionRequest struct {
 func (h *PaymeHandler) Pay(c *fiber.Ctx) error {
 	var req paymeRPCRequest
 	if err := c.BodyParser(&req); err != nil {
+		fmt.Printf("[Payme] Failed to parse request body: %v\n", err)
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
+
+	fmt.Printf("[Payme] Method: %s, Params: %s\n", req.Method, string(req.Params))
 
 	ctx := context.Background()
 
@@ -163,9 +170,15 @@ func (h *PaymeHandler) Checkout(c *fiber.Ctx) error {
 		}
 	}
 
+	var details map[string]any
+	if len(req.OrderDetails) > 0 {
+		_ = json.Unmarshal(req.OrderDetails, &details)
+	}
+
 	txn := models.PaymeTransaction{
 		UserID:       userIDPtr,
 		OrderDetails: req.OrderDetails,
+		OrderID:      extractInternalOrderID(details),
 		Status:       0,
 		Provider:     "payme",
 		Amount:       int64(math.Floor(req.Amount)),
@@ -177,19 +190,16 @@ func (h *PaymeHandler) Checkout(c *fiber.Ctx) error {
 
 	redirectURL := strings.TrimRight(req.URL, "/")
 
-	if len(req.OrderDetails) > 0 {
-		var details map[string]any
-		if err := json.Unmarshal(req.OrderDetails, &details); err == nil {
-			if v, ok := details["service_mode"]; ok {
-				switch vv := v.(type) {
-				case float64:
-					if int(vv) != 1 {
-						redirectURL = fmt.Sprintf("%s/%s", redirectURL, txn.ID.String())
-					}
-				case int:
-					if vv != 1 {
-						redirectURL = fmt.Sprintf("%s/%s", redirectURL, txn.ID.String())
-					}
+	if details != nil {
+		if v, ok := details["service_mode"]; ok {
+			switch vv := v.(type) {
+			case float64:
+				if int(vv) != 1 {
+					redirectURL = fmt.Sprintf("%s/%s", redirectURL, txn.ID.String())
+				}
+			case int:
+				if vv != 1 {
+					redirectURL = fmt.Sprintf("%s/%s", redirectURL, txn.ID.String())
 				}
 			}
 		}
@@ -243,6 +253,71 @@ func (h *PaymeHandler) CreateFakeTransaction(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(txn)
+}
+
+// ListTransactions returns Payme transaction history, optionally filtered.
+func (h *PaymeHandler) ListTransactions(c *fiber.Ctx) error {
+	pg := utils.ParsePagination(c)
+	query := h.db.Model(&models.PaymeTransaction{})
+
+	if provider := strings.TrimSpace(c.Query("provider")); provider != "" {
+		query = query.Where("provider = ?", provider)
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		code, err := strconv.Atoi(status)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid status")
+		}
+		query = query.Where("status = ?", code)
+	}
+	if userID := strings.TrimSpace(c.Query("user_id")); userID != "" {
+		parsed, err := uuid.Parse(userID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid user_id")
+		}
+		query = query.Where("user_id = ?", parsed)
+	}
+	if orderID := strings.TrimSpace(c.Query("order_id")); orderID != "" {
+		query = query.Where("order_id = ?", orderID)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return err
+	}
+
+	var txns []models.PaymeTransaction
+	if err := query.
+		Order("created_at desc").
+		Limit(pg.Limit).
+		Offset(pg.Offset).
+		Find(&txns).Error; err != nil {
+		return err
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    txns,
+		"pagination": fiber.Map{
+			"current_page":   pg.Page,
+			"items_per_page": pg.Limit,
+			"total_items":    total,
+		},
+	})
+}
+
+func extractInternalOrderID(details map[string]any) string {
+	if details == nil {
+		return ""
+	}
+	for _, key := range []string{"internalOrderId", "internal_order_id", "order_id", "orderId"} {
+		if v, ok := details[key]; ok {
+			if str, _ := v.(string); str != "" {
+				return strings.TrimSpace(str)
+			}
+		}
+	}
+	return ""
 }
 
 func writePaymeError(c *fiber.Ctx, err error) error {

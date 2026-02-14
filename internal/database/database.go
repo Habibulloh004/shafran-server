@@ -33,10 +33,6 @@ func Connect(dsn string) *gorm.DB {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	if err := conn.Exec(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`).Error; err != nil {
-		log.Printf("warning: failed to ensure uuid-ossp extension: %v", err)
-	}
-
 	if err := migrate(conn); err != nil {
 		log.Fatalf("database migration failed: %v", err)
 	}

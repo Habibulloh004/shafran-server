@@ -1,6 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -19,25 +24,117 @@ func NewMarketingHandler(db *gorm.DB) *MarketingHandler {
 	return &MarketingHandler{db: db}
 }
 
+// Allowed image MIME types for banner uploads.
+var allowedImageTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/jpg":  true,
+	"image/png":  true,
+	"image/webp": true,
+}
+
 // Banners
 
 func (h *MarketingHandler) ListBanners(c *fiber.Ctx) error {
+	lang := c.Query("lang")
+
 	var items []models.Banner
-	if err := h.db.Find(&items).Error; err != nil {
+	if err := h.db.Order("created_at desc").Find(&items).Error; err != nil {
 		return err
 	}
+
+	// If lang is specified, return simplified response for public use
+	if lang != "" {
+		type PublicBanner struct {
+			ID    uuid.UUID `json:"id"`
+			Title string    `json:"title"`
+			URL   string    `json:"url"`
+			Image string    `json:"image"`
+		}
+		var result []PublicBanner
+		for _, b := range items {
+			image := getImageForLang(b, lang)
+			if image == "" {
+				continue
+			}
+			result = append(result, PublicBanner{
+				ID:    b.ID,
+				Title: b.Title,
+				URL:   b.URL,
+				Image: image,
+			})
+		}
+		return c.JSON(fiber.Map{"success": true, "data": result})
+	}
+
 	return c.JSON(fiber.Map{"success": true, "data": items})
 }
 
-func (h *MarketingHandler) CreateBanner(c *fiber.Ctx) error {
-	var item models.Banner
-	if err := c.BodyParser(&item); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+func getImageForLang(b models.Banner, lang string) string {
+	switch lang {
+	case "ru":
+		if b.ImageRu != "" {
+			return b.ImageRu
+		}
+	case "en":
+		if b.ImageEn != "" {
+			return b.ImageEn
+		}
 	}
-	if err := h.db.Create(&item).Error; err != nil {
+	return b.ImageUz
+}
+
+func (h *MarketingHandler) CreateBanner(c *fiber.Ctx) error {
+	title := c.FormValue("title")
+	if strings.TrimSpace(title) == "" {
+		return fiber.NewError(fiber.StatusBadRequest, "title is required")
+	}
+
+	banner := models.Banner{
+		Title: title,
+		URL:   c.FormValue("url"),
+	}
+
+	// Handle file uploads for each language
+	for _, lang := range []string{"uz", "ru", "en"} {
+		fieldName := "image_" + lang
+		file, err := c.FormFile(fieldName)
+		if err != nil {
+			continue // not provided
+		}
+
+		if !allowedImageTypes[file.Header.Get("Content-Type")] {
+			return fiber.NewError(fiber.StatusBadRequest,
+				fmt.Sprintf("invalid file type for %s: only jpg, png, webp allowed", fieldName))
+		}
+
+		if file.Size > 5*1024*1024 {
+			return fiber.NewError(fiber.StatusBadRequest,
+				fmt.Sprintf("file %s exceeds 5MB limit", fieldName))
+		}
+
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		filename := uuid.New().String() + ext
+		savePath := filepath.Join("uploads", "banners", filename)
+
+		if err := c.SaveFile(file, savePath); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to save file")
+		}
+
+		imageURL := "/uploads/banners/" + filename
+		switch lang {
+		case "uz":
+			banner.ImageUz = imageURL
+		case "ru":
+			banner.ImageRu = imageURL
+		case "en":
+			banner.ImageEn = imageURL
+		}
+	}
+
+	if err := h.db.Create(&banner).Error; err != nil {
 		return err
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "data": item})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"success": true, "data": banner})
 }
 
 func (h *MarketingHandler) UpdateBanner(c *fiber.Ctx) error {
@@ -45,21 +142,71 @@ func (h *MarketingHandler) UpdateBanner(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid id")
 	}
-	var item models.Banner
-	if err := h.db.First(&item, "id = ?", id).Error; err != nil {
+
+	var banner models.Banner
+	if err := h.db.First(&banner, "id = ?", id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return fiber.NewError(fiber.StatusNotFound, "banner not found")
 		}
 		return err
 	}
-	if err := c.BodyParser(&item); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+
+	// Update text fields
+	if title := c.FormValue("title"); strings.TrimSpace(title) != "" {
+		banner.Title = title
 	}
-	item.ID = id
-	if err := h.db.Save(&item).Error; err != nil {
+	banner.URL = c.FormValue("url")
+
+	// Handle file uploads — only overwrite if new file provided
+	for _, lang := range []string{"uz", "ru", "en"} {
+		fieldName := "image_" + lang
+		file, err := c.FormFile(fieldName)
+		if err != nil {
+			continue
+		}
+
+		if !allowedImageTypes[file.Header.Get("Content-Type")] {
+			return fiber.NewError(fiber.StatusBadRequest,
+				fmt.Sprintf("invalid file type for %s: only jpg, png, webp allowed", fieldName))
+		}
+
+		if file.Size > 5*1024*1024 {
+			return fiber.NewError(fiber.StatusBadRequest,
+				fmt.Sprintf("file %s exceeds 5MB limit", fieldName))
+		}
+
+		ext := strings.ToLower(filepath.Ext(file.Filename))
+		filename := uuid.New().String() + ext
+		savePath := filepath.Join("uploads", "banners", filename)
+
+		if err := c.SaveFile(file, savePath); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "failed to save file")
+		}
+
+		imageURL := "/uploads/banners/" + filename
+
+		// Remove old file (best-effort)
+		var oldPath string
+		switch lang {
+		case "uz":
+			oldPath = banner.ImageUz
+			banner.ImageUz = imageURL
+		case "ru":
+			oldPath = banner.ImageRu
+			banner.ImageRu = imageURL
+		case "en":
+			oldPath = banner.ImageEn
+			banner.ImageEn = imageURL
+		}
+		if oldPath != "" {
+			os.Remove(strings.TrimPrefix(oldPath, "/"))
+		}
+	}
+
+	if err := h.db.Save(&banner).Error; err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"success": true, "data": item})
+	return c.JSON(fiber.Map{"success": true, "data": banner})
 }
 
 func (h *MarketingHandler) DeleteBanner(c *fiber.Ctx) error {
@@ -67,9 +214,26 @@ func (h *MarketingHandler) DeleteBanner(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid id")
 	}
-	if err := h.db.Delete(&models.Banner{}, "id = ?", id).Error; err != nil {
+
+	var banner models.Banner
+	if err := h.db.First(&banner, "id = ?", id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fiber.NewError(fiber.StatusNotFound, "banner not found")
+		}
 		return err
 	}
+
+	if err := h.db.Delete(&banner).Error; err != nil {
+		return err
+	}
+
+	// Clean up files (best-effort)
+	for _, path := range []string{banner.ImageUz, banner.ImageRu, banner.ImageEn} {
+		if path != "" {
+			os.Remove(strings.TrimPrefix(path, "/"))
+		}
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

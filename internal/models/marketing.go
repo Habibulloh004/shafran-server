@@ -2,10 +2,11 @@ package models
 
 type Banner struct {
 	BaseModel
-	Title     string `json:"title"`
-	ImageLight string `json:"image_light"`
-	ImageDark  string `json:"image_dark"`
-	URL       string `json:"url"`
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	ImageUz string `json:"image_uz"`
+	ImageRu string `json:"image_ru"`
+	ImageEn string `json:"image_en"`
 }
 
 type PickupBranch struct {

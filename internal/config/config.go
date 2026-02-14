@@ -19,13 +19,10 @@ type Config struct {
 	PaymeMerchantKey  string
 	TelegramBotToken  string
 	TelegramAdminChat string
-<<<<<<< HEAD
 	PlumBaseURL       string
 	PlumUsername      string
 	PlumPassword      string
 	PlumEnabled       bool
-=======
->>>>>>> aa20ef04ed67ec5424fe0b2e816639ec249f073e
 }
 
 // Load reads environment variables and returns a populated Config.
@@ -41,13 +38,10 @@ func Load() *Config {
 		PaymeMerchantKey:  getEnv("PAYME_MERCHANT_KEY", ""),
 		TelegramBotToken:  getEnv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramAdminChat: getEnv("TELEGRAM_ADMIN_CHAT_ID", ""),
-<<<<<<< HEAD
 		PlumBaseURL:       getEnv("PLUM_BASE_URL", "https://pay.myuzcard.uz/api"),
 		PlumUsername:      getEnv("PLUM_USERNAME", ""),
 		PlumPassword:      getEnv("PLUM_PASSWORD", ""),
 		PlumEnabled:       getEnv("PLUM_ENABLED", "false") == "true",
-=======
->>>>>>> aa20ef04ed67ec5424fe0b2e816639ec249f073e
 	}
 
 	if cfg.AppPort == "" {

@@ -32,6 +32,8 @@ var allowedImageTypes = map[string]bool{
 	"image/webp": true,
 }
 
+const maxBannerFileSize = 50 * 1024 * 1024 // 50MB
+
 // Banners
 
 func (h *MarketingHandler) ListBanners(c *fiber.Ctx) error {
@@ -107,9 +109,9 @@ func (h *MarketingHandler) CreateBanner(c *fiber.Ctx) error {
 				fmt.Sprintf("invalid file type for %s: only jpg, png, webp allowed", fieldName))
 		}
 
-		if file.Size > 5*1024*1024 {
+		if file.Size > maxBannerFileSize {
 			return fiber.NewError(fiber.StatusBadRequest,
-				fmt.Sprintf("file %s exceeds 5MB limit", fieldName))
+				fmt.Sprintf("file %s exceeds 50MB limit", fieldName))
 		}
 
 		ext := strings.ToLower(filepath.Ext(file.Filename))
@@ -170,9 +172,9 @@ func (h *MarketingHandler) UpdateBanner(c *fiber.Ctx) error {
 				fmt.Sprintf("invalid file type for %s: only jpg, png, webp allowed", fieldName))
 		}
 
-		if file.Size > 5*1024*1024 {
+		if file.Size > maxBannerFileSize {
 			return fiber.NewError(fiber.StatusBadRequest,
-				fmt.Sprintf("file %s exceeds 5MB limit", fieldName))
+				fmt.Sprintf("file %s exceeds 50MB limit", fieldName))
 		}
 
 		ext := strings.ToLower(filepath.Ext(file.Filename))
@@ -354,4 +356,3 @@ func (h *MarketingHandler) DeletePaymentProvider(c *fiber.Ctx) error {
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
-

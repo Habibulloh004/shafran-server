@@ -9,6 +9,12 @@ type FooterSettings struct {
 	Phone2      string `json:"phone2"`
 	Email       string `json:"email"`
 	WorkingHours string `json:"working_hours"`
+	WorkingHoursUz string `json:"working_hours_uz"`
+	WorkingHoursRu string `json:"working_hours_ru"`
+	WorkingHoursEn string `json:"working_hours_en"`
+	WorkingHoursTitleUz string `json:"working_hours_title_uz"`
+	WorkingHoursTitleRu string `json:"working_hours_title_ru"`
+	WorkingHoursTitleEn string `json:"working_hours_title_en"`
 
 	// Social links
 	Telegram  string `json:"telegram"`
@@ -27,5 +33,11 @@ type FooterSettings struct {
 	TikTokEnabled    bool `json:"tiktok_enabled"`
 
 	// Extra text sections
+	SubscribeTitleUz string `json:"subscribe_title_uz"`
+	SubscribeTitleRu string `json:"subscribe_title_ru"`
+	SubscribeTitleEn string `json:"subscribe_title_en"`
+	CopyrightTextUz string `json:"copyright_text_uz"`
+	CopyrightTextRu string `json:"copyright_text_ru"`
+	CopyrightTextEn string `json:"copyright_text_en"`
 	CopyrightText string `json:"copyright_text"`
 }

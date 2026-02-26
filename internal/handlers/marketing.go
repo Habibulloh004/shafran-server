@@ -32,7 +32,7 @@ var allowedImageTypes = map[string]bool{
 	"image/webp": true,
 }
 
-const maxBannerFileSize = 50 * 1024 * 1024 // 50MB
+const maxBannerFileSize = 200 * 1024 * 1024 // 200MB
 
 // Banners
 
@@ -111,7 +111,7 @@ func (h *MarketingHandler) CreateBanner(c *fiber.Ctx) error {
 
 		if file.Size > maxBannerFileSize {
 			return fiber.NewError(fiber.StatusBadRequest,
-				fmt.Sprintf("file %s exceeds 50MB limit", fieldName))
+				fmt.Sprintf("file %s exceeds 200MB limit", fieldName))
 		}
 
 		ext := strings.ToLower(filepath.Ext(file.Filename))
@@ -174,7 +174,7 @@ func (h *MarketingHandler) UpdateBanner(c *fiber.Ctx) error {
 
 		if file.Size > maxBannerFileSize {
 			return fiber.NewError(fiber.StatusBadRequest,
-				fmt.Sprintf("file %s exceeds 50MB limit", fieldName))
+				fmt.Sprintf("file %s exceeds 200MB limit", fieldName))
 		}
 
 		ext := strings.ToLower(filepath.Ext(file.Filename))
